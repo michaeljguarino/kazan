@@ -273,14 +273,14 @@ defmodule Kazan.Watcher do
 
   # Processes each line returning either {:ok, new_rv} or {:error, :gone}
   # corresponding messages are sent to the send_to process
-  defp process_line(line, current_rv, %State{} = state) do
+  defp process_line(line, current_rv, %State{request: %{response_model: model}} = state) do
     %State{
       name: name,
       send_to: send_to
     } = state
 
     {:ok, %{"type" => type, "object" => raw_object}} = Poison.decode(line)
-    {:ok, model} = Kazan.Models.decode(raw_object, nil)
+    {:ok, model} = decode(raw_object, model)
 
     case extract_rv(raw_object) do
       {:gone, message} ->
@@ -342,4 +342,10 @@ defmodule Kazan.Watcher do
   defp log(log_level, msg) do
     Logger.log(log_level, fn -> msg end)
   end
+
+  # Decode helpers: if we know what model we're expecting, use that.
+  # Otherwise defer to Kazan.Models.decode which will try to guess the model
+  # from the kind provided in the response.
+  defp decode(data, nil), do: Kazan.Models.decode(data, nil)
+  defp decode(data, response_model), do: response_model.decode(data)
 end
