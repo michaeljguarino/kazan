@@ -2,8 +2,8 @@ defmodule KazanIntegrationTest do
   use ExUnit.Case, async: false
 
   alias Kazan.Apis.Core.V1, as: CoreV1
-  alias Kazan.Apis.Extensions.V1beta1, as: ExtensionsV1beta1
-  alias Kazan.Apis.Rbacauthorization.V1beta1, as: RbacauthorizationV1beta1
+  alias Kazan.Apis.Apps.V1, as: AppsV1
+  alias Kazan.Apis.Rbacauthorization.V1, as: RbacauthorizationV1
   alias Kazan.Apis.Core.V1.{Pod, PodStatus, PodSpec, Container}
 
   alias Kazan.Models.Apimachinery.Meta.V1.{
@@ -56,7 +56,7 @@ defmodule KazanIntegrationTest do
   end
 
   test "can list deployments on an actual server", %{server: server} do
-    ExtensionsV1beta1.list_namespaced_deployment!(@namespace)
+    AppsV1.list_namespaced_deployment!(@namespace)
     |> Kazan.run!(server: server)
   end
 
@@ -87,7 +87,7 @@ defmodule KazanIntegrationTest do
 
   test "RBAC Authorization V1 Beta 1 API", %{server: server} do
     cluster_roles =
-      RbacauthorizationV1beta1.list_cluster_role!()
+      RbacauthorizationV1.list_cluster_role!()
       |> Kazan.run!(server: server)
 
     assert cluster_roles.kind == "ClusterRoleList"
@@ -195,7 +195,7 @@ defmodule KazanIntegrationTest do
   end
 
   describe "Custom Resources" do
-    alias Kazan.Apis.Apiextensions.V1beta1, as: Apiextensions
+    alias Kazan.Apis.Apiextensions.V1, as: Apiextensions
 
     alias Apiextensions.{
       CustomResourceDefinition,
@@ -209,7 +209,7 @@ defmodule KazanIntegrationTest do
           metadata: %ObjectMeta{name: "foos.example.com"},
           spec: %CustomResourceDefinitionSpec{
             group: "example.com",
-            version: "v1",
+            versions: ["v1"],
             scope: "Namespaced",
             names: %CustomResourceDefinitionNames{
               plural: "foos",
