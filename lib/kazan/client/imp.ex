@@ -20,87 +20,25 @@ defmodule Kazan.Client.Imp do
   """
   @spec run(Request.t(), Keyword.t()) :: run_result
   def run(%Request{} = request, options \\ []) do
+    options = Map.new(options)
     server = find_server(options)
 
-    headers = [{"Accept", "application/json"}]
-
-    headers =
-      headers ++
-        case request.content_type do
-          nil -> []
-          type -> [{"Content-Type", type}]
-        end
-
-    headers =
-      headers ++
-        case server.auth do
-          %Server.TokenAuth{token: token} ->
-            [{"Authorization", "Bearer #{token}"}]
-
-          %Server.ProviderAuth{token: token} when not is_nil(token) ->
-            [{"Authorization", "Bearer #{token}"}]
-
-          %Server.BasicAuth{token: token} when not is_nil(token) ->
-            [{"Authorization", "Basic #{token}"}]
-
-          %Server.ProviderAuth{} ->
-            raise "Provider authentication needs resolved before use.  Please see Kazan.Server.resolve_auth/2 documentation for more details"
-
-          _ ->
-            []
-        end
-
-    stream_to = Keyword.get(options, :stream_to)
-
-    request_options = [params: request.query_params, ssl: ssl_options(server)]
-
-    request_options =
-      case stream_to do
-        nil ->
-          request_options
-
-        pid ->
-          request_options ++
-            [
-              stream_to: pid,
-              recv_timeout: Keyword.get(options, :recv_timeout, 15000)
-            ]
-      end
-
-    res =
-      HTTPoison.request(
-        method(request.method),
-        server.url <> request.path,
-        request.body || "",
-        headers,
-        request_options
-      )
-
-    case stream_to do
-      nil ->
-        with {:ok, result} <- res,
-             {:ok, body} <- check_status(result),
-             {:ok, content_type} <- get_content_type(result) do
-          case content_type do
-            "application/json" ->
-              with {:ok, data} <- Poison.decode(body),
-                   {:ok, model} <- decode(data, request.response_model),
-                   do: {:ok, model}
-
-            "text/plain" ->
-              {:ok, body}
-
-            _ ->
-              {:error, :unsupported_content_type}
-          end
-        end
-
-      _pid ->
-        case res do
-          {:ok, %HTTPoison.AsyncResponse{id: id}} -> {:ok, id}
-          other -> other
-        end
+    headers = [{"Accept", "application/json"}] ++ content_type_header(request.content_type) ++ auth_headers(server.auth)
+    request_options = [params: request.query_params, ssl: ssl_options(server)] ++ timeout_opts(options)
+    request_options = case options do
+      %{stream_to: pid} when is_pid(pid) ->
+        request_options ++ [stream_to: pid, recv_timeout: Map.get(options, :recv_timeout, 15000)]
+      _ -> request_options
     end
+
+    HTTPoison.request(
+      method(request.method),
+      server.url <> request.path,
+      request.body || "",
+      headers,
+      request_options
+    )
+    |> handle_response(request, options)
   end
 
   @doc """
@@ -114,19 +52,38 @@ defmodule Kazan.Client.Imp do
     end
   end
 
+  defp handle_response({:ok, %HTTPoison.AsyncResponse{id: id}}, _, %{stream_to: pid}) when is_pid(pid), do: {:ok, id}
+  defp handle_response(err, _, %{stream_to: pid}) when is_pid(pid), do: err
+  defp handle_response({:ok, result}, request, _) do
+    with {:ok, body} <- check_status(result),
+         {:ok, content_type} <- get_content_type(result) do
+      case content_type do
+        "application/json" ->
+          with {:ok, data} <- Poison.decode(body),
+               {:ok, model} <- decode(data, request.response_model),
+            do: {:ok, model}
+
+        "text/plain" ->
+          {:ok, body}
+
+        _ ->
+          {:error, :unsupported_content_type}
+      end
+    end
+  end
+  defp handle_response(err, _, _), do: err
+
+  defp timeout_opts(%{recv_timeout: recv}), do: [recv_timeout: recv]
+  defp timeout_opts(%{timeout: recv}), do: [recv_timeout: recv]
+  defp timeout_opts(_), do: []
+
   # Figures out which server we should use.  In order of preference:
   # - A server specified in the keyword arguments
   # - A server specified in the kazan config
   @spec find_server(Keyword.t()) :: Server.t()
-  defp find_server(options) do
-    case Keyword.get(options, :server) do
-      nil ->
-        Server.from_env!()
-
-      server ->
-        server
-    end
-  end
+  defp find_server(%{server: %Server{} = server}), do: server
+  defp find_server(opts) when is_list(opts), do: find_server(Map.new(opts))
+  defp find_server(_), do: Server.from_env!()
 
   defp method("get"), do: :get
   defp method("post"), do: :post
@@ -177,11 +134,19 @@ defmodule Kazan.Client.Imp do
     auth_options ++ verify_options ++ ca_options
   end
 
-  defp ssl_auth_options(%Server.CertificateAuth{certificate: cert, key: key}) do
-    [cert: cert, key: key]
-  end
-
+  defp ssl_auth_options(%Server.CertificateAuth{certificate: cert, key: key}), do: [cert: cert, key: key]
   defp ssl_auth_options(_), do: []
+
+  defp content_type_header(type) when is_binary(type), do: [{"Content-Type", type}]
+  defp content_type_header(_), do: []
+
+  defp auth_headers(%Server.TokenAuth{token: token}), do: [{"Authorization", "Bearer #{token}"}]
+  defp auth_headers(%Server.ProviderAuth{token: token}) when not is_nil(token), do: [{"Authorization", "Bearer #{token}"}]
+  defp auth_headers(%Server.BasicAuth{token: token}) when not is_nil(token), do: [{"Authorization", "Basic #{token}"}]
+  defp auth_headers(%Server.ProviderAuth{}) do
+    raise "Provider authentication needs resolved before use.  Please see Kazan.Server.resolve_auth/2 documentation for more details"
+  end
+  defp auth_headers(_), do: []
 
   # Decode helpers: if we know what model we're expecting, use that.
   # Otherwise defer to Kazan.Models.decode which will try to guess the model
