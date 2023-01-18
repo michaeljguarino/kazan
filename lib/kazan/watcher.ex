@@ -108,6 +108,11 @@ defmodule Kazan.Watcher do
     GenServer.start_link(__MODULE__, [request, send_to, opts])
   end
 
+  def start(%Kazan.Request{} = request, opts) do
+    {send_to, opts} = Keyword.pop(opts, :send_to, self())
+    GenServer.start(__MODULE__, [request, send_to, opts])
+  end
+
   @doc "Stops the watch and terminates the process"
   def stop_watch(pid) do
     # Need to catch the case where the watch might have already terminated due
