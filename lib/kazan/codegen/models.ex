@@ -143,7 +143,7 @@ defmodule Kazan.Codegen.Models do
     {:boolean, [], Elixir}
   end
 
-  defp typespec_for_property(%PropertyDesc{type: :object}) do
+  defp typespec_for_property(%PropertyDesc{type: _}) do
     {:map, [], Elixir}
   end
 
@@ -192,6 +192,8 @@ defmodule Kazan.Codegen.Models do
 
         :boolean ->
           "`Boolean`"
+
+        nil -> "`Map`"
       end
     end
   end

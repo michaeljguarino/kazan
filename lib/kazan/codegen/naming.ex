@@ -77,15 +77,28 @@ defmodule Kazan.Codegen.Naming do
           String.starts_with?(other, oai_prefix)
         end)
         |> case do
-          nil ->
-            raise Kazan.UnknownName, name: other
-
           {oai_prefix, module_prefix} ->
             [module_prefix] ++
               to_components.(String.replace_leading(other, oai_prefix, ""))
+          nil ->
+            [Kazan.Crds] ++ to_components.(reverse_dots(other))
         end
     end
   end
+
+  defp reverse_dots(oai_name) do
+    String.split(oai_name, ".")
+    |> Enum.reverse()
+    |> prune_package_prefix()
+    |> case do
+      [resource, vsn | rest] -> rest ++ [vsn, resource]
+      pass -> pass
+    end
+    |> Enum.join(".")
+  end
+
+  defp prune_package_prefix([_, "Apis", "Pkg" | rest]), do: rest
+  defp prune_package_prefix(pass), do: pass
 
   # Uppercases the first character of str
   # This is different from capitalize, in that it leaves the rest of the string

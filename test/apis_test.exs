@@ -2,7 +2,7 @@ defmodule KazanApiTests do
   use ExUnit.Case
 
   alias Kazan.Apis.Core.V1, as: CoreV1
-  alias Kazan.Apis.Extensions.V1beta1, as: ExtensionsV1beta1
+  alias Kazan.Apis.Networking
   alias Kazan.Models.Apimachinery.Meta.V1.ObjectMeta
 
   describe "Apis.oai_id_to_functions" do
@@ -38,7 +38,7 @@ defmodule KazanApiTests do
 
   test "request with path params" do
     {:ok, res} =
-      ExtensionsV1beta1.read_namespaced_network_policy(
+      Networking.V1.read_namespaced_network_policy(
         "test-namespace",
         "test-policy",
         pretty: true
@@ -48,7 +48,7 @@ defmodule KazanApiTests do
     assert res.method == "get"
 
     assert res.path ==
-             "/apis/extensions/v1beta1/namespaces/test-namespace/networkpolicies/test-policy"
+             "/apis/networking.k8s.io/v1/namespaces/test-namespace/networkpolicies/test-policy"
 
     assert res.query_params == %{"pretty" => true}
   end
