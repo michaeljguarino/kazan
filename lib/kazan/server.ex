@@ -48,6 +48,31 @@ defmodule Kazan.Server do
   * `user` can be used to override the default user we pull from the file.
   * `cluster` can be used to override the default cluster we pull from the file.
   """
+  @spec from_kubeconfig_raw(binary, Keyword.t) :: t
+  def from_kubeconfig_raw(config, options \\ []) do
+    data = YamlElixir.read_from_string!(config)
+    context_name = options[:context] || data["current-context"]
+    context = find_by_name(data["contexts"], context_name)["context"]
+
+    user_name = options[:user] || context["user"]
+    user = find_by_name(data["users"], user_name)["user"]
+
+    cluster_name = options[:cluster] || context["cluster"]
+    cluster = find_by_name(data["clusters"], cluster_name)["cluster"]
+
+    %__MODULE__{
+      url: cluster["server"],
+      ca_cert: cluster["certificate-authority-data"],
+      auth: auth_from_user(user, ""),
+      insecure_skip_tls_verify: cluster["insecure-skip-tls-verify"],
+      server_info: %Kazan.Server.ServerInfo{
+        context_name: context_name,
+        user_name: user_name,
+        cluster_name: cluster_name
+      }
+    }
+  end
+
   @spec from_kubeconfig(String.t(), Keyword.t()) :: t
   def from_kubeconfig(config_file, options \\ []) do
     data = YamlElixir.read_from_file!(config_file)
