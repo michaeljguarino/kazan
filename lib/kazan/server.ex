@@ -62,7 +62,7 @@ defmodule Kazan.Server do
 
     %__MODULE__{
       url: cluster["server"],
-      ca_cert: cluster["certificate-authority-data"],
+      ca_cert: cert_from_base64(cluster["certificate-authority-data"]),
       auth: auth_from_user(user, ""),
       insecure_skip_tls_verify: cluster["insecure-skip-tls-verify"],
       server_info: %Kazan.Server.ServerInfo{
