@@ -116,6 +116,7 @@ defmodule Kazan.Models do
   defp decode_property(value, %{type: :string}), do: {:ok, value}
   defp decode_property(value, %{type: :boolean}), do: {:ok, value}
   defp decode_property(value, %{type: :integer}), do: {:ok, value}
+  defp decode_property(value, %{type: :number}), do: {:ok, value}
   defp decode_property(value, %{type: :object}), do: {:ok, value}
 
   defp decode_property(value, %{type: :array, items: items}) do
@@ -173,6 +174,7 @@ defmodule Kazan.Models do
   defp encode_property(value, %{type: :string}), do: {:ok, value}
   defp encode_property(value, %{type: :boolean}), do: {:ok, value}
   defp encode_property(value, %{type: :integer}), do: {:ok, value}
+  defp encode_property(value, %{type: :number}), do: {:ok, value}
   defp encode_property(value, %{type: :object}), do: {:ok, value}
 
   defp encode_property(value, %{type: {:array, items}}) when is_atom(items),
