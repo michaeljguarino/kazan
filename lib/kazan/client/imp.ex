@@ -5,6 +5,8 @@ defmodule Kazan.Client.Imp do
 
   alias Kazan.{Request, Server}
 
+  @httpoison_options Application.compile_env(:kazan, :httpoison_options, [])
+
   @type run_result :: {:ok, struct} | {:error, term}
 
   @doc """
@@ -73,7 +75,7 @@ defmodule Kazan.Client.Imp do
         server.url <> request.path,
         request.body || "",
         headers,
-        request_options
+        request_options ++ @httpoison_options
       )
 
     case stream_to do
