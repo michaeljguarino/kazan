@@ -26,7 +26,7 @@ defmodule Kazan.Client.Imp do
     server = find_server(options)
 
     headers = [{"Accept", "application/json"}] ++ content_type_header(request.content_type) ++ auth_headers(server.auth)
-    request_options = [params: request.query_params, ssl: ssl_options(server)] ++ timeout_opts(options)
+    request_options = [params: request.query_params, ssl: ssl_options(server)] ++ timeout_opts(options) ++ @httpoison_options
     request_options = case options do
       %{stream_to: pid} when is_pid(pid) ->
         request_options ++ [stream_to: pid, recv_timeout: Map.get(options, :recv_timeout, 15000)]
