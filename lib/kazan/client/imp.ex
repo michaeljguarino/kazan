@@ -5,6 +5,8 @@ defmodule Kazan.Client.Imp do
 
   alias Kazan.{Request, Server}
 
+  @httpoison_options Application.compile_env(:kazan, :httpoison_options, [])
+
   @type run_result :: {:ok, struct} | {:error, term}
 
   @doc """

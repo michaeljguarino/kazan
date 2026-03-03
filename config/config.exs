@@ -38,3 +38,5 @@ if Mix.env() == :dev do
   config :kazan,
     server: {:kubeconfig, System.user_home() <> "/.kube/config"}
 end
+
+config :kazan, :httpoison_options, []
