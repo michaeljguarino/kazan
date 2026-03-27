@@ -4,7 +4,8 @@ defmodule KazanModelsTest do
   alias Kazan.Models
   alias Kazan.Apis.Rbac
   alias Kazan.Apis.Core
-  alias Kazan.Apis.Extensions
+  alias Kazan.Apis.Apps
+  alias Kazan.Apis.Autoscaling
 
   test "that we have some models" do
     # Not a particularly thorough test, but whatever:
@@ -41,12 +42,12 @@ defmodule KazanModelsTest do
       {:ok, result} =
         Models.decode(%{
           "kind" => "Scale",
-          "apiVersion" => "extensions/v1beta1"
+          "apiVersion" => "autoscaling/v1"
         })
 
-      assert result == %Extensions.V1beta1.Scale{
+      assert result == %Autoscaling.V1.Scale{
                kind: "Scale",
-               api_version: "extensions/v1beta1"
+               api_version: "autoscaling/v1"
              }
     end
 
@@ -54,13 +55,13 @@ defmodule KazanModelsTest do
       {:ok, result} =
         Models.decode(%{
           "kind" => "ClusterRoleBinding",
-          "apiVersion" => "rbac.authorization.k8s.io/v1beta1",
+          "apiVersion" => "rbac.authorization.k8s.io/v1",
           "subjects" => []
         })
 
-      assert result == %Rbac.V1beta1.ClusterRoleBinding{
+      assert result == %Rbac.V1.ClusterRoleBinding{
                kind: "ClusterRoleBinding",
-               api_version: "rbac.authorization.k8s.io/v1beta1",
+               api_version: "rbac.authorization.k8s.io/v1",
                subjects: []
              }
     end
@@ -78,13 +79,13 @@ defmodule KazanModelsTest do
               "updatedReplicas" => 0
             }
           },
-          Extensions.V1beta1.Deployment
+          Apps.V1.Deployment
         )
 
-      assert result == %Extensions.V1beta1.Deployment{
+      assert result == %Apps.V1.Deployment{
                metadata: nil,
                spec: nil,
-               status: %Extensions.V1beta1.DeploymentStatus{
+               status: %Apps.V1.DeploymentStatus{
                  available_replicas: 1,
                  conditions: [],
                  observed_generation: 1,
@@ -104,13 +105,13 @@ defmodule KazanModelsTest do
               %{"status" => nil}
             ]
           },
-          Extensions.V1beta1.DeploymentList
+          Apps.V1.DeploymentList
         )
 
-      assert result == %Extensions.V1beta1.DeploymentList{
+      assert result == %Apps.V1.DeploymentList{
                items: [
-                 %Extensions.V1beta1.Deployment{},
-                 %Extensions.V1beta1.Deployment{}
+                 %Apps.V1.Deployment{},
+                 %Apps.V1.Deployment{}
                ],
                metadata: nil
              }
@@ -140,10 +141,10 @@ defmodule KazanModelsTest do
 
     test "that we can encode nested models" do
       {:ok, result} =
-        Models.encode(%Extensions.V1beta1.Deployment{
+        Models.encode(%Apps.V1.Deployment{
           metadata: nil,
           spec: nil,
-          status: %Extensions.V1beta1.DeploymentStatus{
+          status: %Apps.V1.DeploymentStatus{
             available_replicas: 1,
             conditions: [],
             observed_generation: 1,
@@ -167,9 +168,9 @@ defmodule KazanModelsTest do
 
     test "that we can encode arrays" do
       {:ok, result} =
-        Models.encode(%Extensions.V1beta1.DeploymentList{
+        Models.encode(%Apps.V1.DeploymentList{
           items: [
-            %Extensions.V1beta1.Deployment{}
+            %Apps.V1.Deployment{}
           ],
           metadata: nil
         })
@@ -214,8 +215,8 @@ defmodule KazanModelsTest do
 
     test "it supports names provided in app config" do
       # Our config.exs defines this mapping, lets see if it works...
-      assert Kazan.Models.oai_name_to_module("something.test.whatever") ==
-               Kazan.Something.Whatever
+      assert Kazan.Models.oai_name_to_module("io.cert-manager.v1.Certificate") ==
+               Kazan.Crds.CertManager.V1.Certificate
     end
   end
 end

@@ -29,10 +29,12 @@ use Mix.Config
 #
 #     import_config "#{Mix.env}.exs"
 
-if Mix.env() == :test do
-  config :kazan,
-    oai_name_mappings: [{"something.test", Kazan.Something}]
-end
+config :kazan,
+  oai_spec: "kube_specs/k8s-swagger.json",
+  oai_name_mappings: [
+    {"io.cert-manager.", Kazan.Crds.CertManager}
+  ]
+
 
 if Mix.env() == :dev do
   config :kazan,
