@@ -130,6 +130,7 @@ defmodule Kazan.Client.Imp do
     ca_options =
       case server.ca_cert do
         nil -> []
+        certs when is_list(certs) -> [cacerts: certs, verify: :verify_peer]
         cert -> [cacerts: [cert], verify: :verify_peer]
       end
 

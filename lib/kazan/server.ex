@@ -386,9 +386,9 @@ defmodule Kazan.Server do
     |> resolve_filename(basepath)
     |> File.read!()
     |> :public_key.pem_decode()
-    |> Enum.find_value(fn
-      {:Certificate, data, _} -> data
-      _ -> nil
+    |> Enum.flat_map(fn
+      {:Certificate, data, _} -> [data]
+      _ -> []
     end)
   end
 
@@ -398,9 +398,9 @@ defmodule Kazan.Server do
     case Base.decode64(encoded_cert) do
       {:ok, cert_data} ->
         :public_key.pem_decode(cert_data)
-        |> Enum.find_value(fn
-          {:Certificate, data, _} -> data
-          _ -> nil
+        |> Enum.flat_map(fn
+          {:Certificate, data, _} -> [data]
+          _ -> []
         end)
 
       _ ->
