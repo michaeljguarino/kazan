@@ -109,10 +109,10 @@ defmodule Kazan.Server do
   [See the Kubernetes documentation for more information](https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/#accessing-the-api-from-a-pod).
   """
   @spec in_cluster(Keyword.t()) :: t
-  def in_cluster(_options \\ []) do
+  def in_cluster(options \\ []) do
     basepath = "/var/run/secrets/kubernetes.io/serviceaccount"
-    host = System.get_env("KUBERNETES_SERVICE_HOST")
-    port = System.get_env("KUBERNETES_SERVICE_PORT")
+    host = options[:host] || System.get_env("KUBERNETES_SERVICE_HOST")
+    port = options[:port] || System.get_env("KUBERNETES_SERVICE_PORT")
 
     %__MODULE__{
       url: "https://#{host}:#{port}",
