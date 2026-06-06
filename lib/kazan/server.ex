@@ -25,14 +25,16 @@ defmodule Kazan.Server do
             ca_cert: nil,
             auth: nil,
             insecure_skip_tls_verify: nil,
-            server_info: nil
+            server_info: nil,
+            in_cluster: false
 
   @type t :: %{
           url: String.t(),
           insecure_skip_tls_verify: Boolean.t(),
           ca_cert: String.t() | nil,
           auth: auth_t,
-          server_info: Kazan.Server.ServerInfo.t() | nil
+          server_info: Kazan.Server.ServerInfo.t() | nil,
+          in_cluster: Boolean.t()
         }
 
   @doc """
@@ -48,7 +50,7 @@ defmodule Kazan.Server do
   * `user` can be used to override the default user we pull from the file.
   * `cluster` can be used to override the default cluster we pull from the file.
   """
-  @spec from_kubeconfig_raw(binary, Keyword.t) :: t
+  @spec from_kubeconfig_raw(binary, Keyword.t()) :: t
   def from_kubeconfig_raw(config, options \\ []) do
     data = YamlElixir.read_from_string!(config)
     context_name = options[:context] || data["current-context"]
@@ -117,6 +119,7 @@ defmodule Kazan.Server do
     %__MODULE__{
       url: "https://#{host}:#{port}",
       ca_cert: cert_from_pem("ca.crt", basepath),
+      in_cluster: true,
       auth: %Kazan.Server.TokenAuth{
         token: Path.join([basepath, "token"]) |> File.read!()
       }

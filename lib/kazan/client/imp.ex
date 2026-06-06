@@ -25,13 +25,26 @@ defmodule Kazan.Client.Imp do
     options = Map.new(options)
     server = find_server(options)
 
-    headers = [{"Accept", "application/json"}] ++ content_type_header(request.content_type) ++ auth_headers(server.auth)
-    request_options = [params: request.query_params, ssl: ssl_options(server)] ++ timeout_opts(options) ++ @httpoison_options
-    request_options = case options do
-      %{stream_to: pid} when is_pid(pid) ->
-        request_options ++ [stream_to: pid, recv_timeout: Map.get(options, :recv_timeout, 15000)]
-      _ -> request_options
-    end
+    headers =
+      [{"Accept", "application/json"}] ++
+        content_type_header(request.content_type) ++ auth_headers(server.auth)
+
+    request_options =
+      [params: request.query_params, ssl: ssl_options(server)] ++
+        timeout_opts(options) ++ @httpoison_options
+
+    request_options =
+      case options do
+        %{stream_to: pid} when is_pid(pid) ->
+          request_options ++
+            [
+              stream_to: pid,
+              recv_timeout: Map.get(options, :recv_timeout, 15000)
+            ]
+
+        _ ->
+          request_options
+      end
 
     HTTPoison.request(
       method(request.method),
@@ -54,8 +67,13 @@ defmodule Kazan.Client.Imp do
     end
   end
 
-  defp handle_response({:ok, %HTTPoison.AsyncResponse{id: id}}, _, %{stream_to: pid}) when is_pid(pid), do: {:ok, id}
+  defp handle_response({:ok, %HTTPoison.AsyncResponse{id: id}}, _, %{
+         stream_to: pid
+       })
+       when is_pid(pid), do: {:ok, id}
+
   defp handle_response(err, _, %{stream_to: pid}) when is_pid(pid), do: err
+
   defp handle_response({:ok, result}, request, _) do
     with {:ok, body} <- check_status(result),
          {:ok, content_type} <- get_content_type(result) do
@@ -63,7 +81,7 @@ defmodule Kazan.Client.Imp do
         "application/json" ->
           with {:ok, data} <- Poison.decode(body),
                {:ok, model} <- decode(data, request.response_model),
-            do: {:ok, model}
+               do: {:ok, model}
 
         "text/plain" ->
           {:ok, body}
@@ -73,6 +91,7 @@ defmodule Kazan.Client.Imp do
       end
     end
   end
+
   defp handle_response(err, _, _), do: err
 
   defp timeout_opts(%{recv_timeout: recv}), do: [recv_timeout: recv]
@@ -134,21 +153,67 @@ defmodule Kazan.Client.Imp do
         cert -> [cacerts: [cert], verify: :verify_peer]
       end
 
-    auth_options ++ verify_options ++ ca_options
+    auth_options ++
+      verify_options ++ ca_options ++ hostname_verify_options(server)
   end
 
-  defp ssl_auth_options(%Server.CertificateAuth{certificate: cert, key: key}), do: [cert: cert, key: key]
+  defp hostname_verify_options(%Server{in_cluster: true, url: url}) do
+    host = URI.parse(url).host
+    {ref_ids, server_name_indication} = hostname_verification_config(host)
+
+    [
+      verify_fun: {&verify_hostname/3, ref_ids},
+      server_name_indication: server_name_indication
+    ]
+  end
+
+  defp hostname_verify_options(_), do: []
+
+  defp hostname_verification_config(host) do
+    host = to_charlist(host)
+
+    case :inet.parse_address(host) do
+      {:ok, ip} -> {[{:ip, ip}], :disable}
+      {:error, _} -> {[{:dns_id, host}], host}
+    end
+  end
+
+  defp verify_hostname(_cert, {:bad_cert, reason}, _ref_ids),
+    do: {:fail, reason}
+
+  defp verify_hostname(_cert, {:extension, _}, ref_ids), do: {:unknown, ref_ids}
+  defp verify_hostname(_cert, :valid, ref_ids), do: {:valid, ref_ids}
+
+  defp verify_hostname(cert, :valid_peer, ref_ids) do
+    case :public_key.pkix_verify_hostname(cert, ref_ids) do
+      true -> {:valid, ref_ids}
+      false -> {:fail, :hostname_check_failed}
+    end
+  end
+
+  defp ssl_auth_options(%Server.CertificateAuth{certificate: cert, key: key}),
+    do: [cert: cert, key: key]
+
   defp ssl_auth_options(_), do: []
 
-  defp content_type_header(type) when is_binary(type), do: [{"Content-Type", type}]
+  defp content_type_header(type) when is_binary(type),
+    do: [{"Content-Type", type}]
+
   defp content_type_header(_), do: []
 
-  defp auth_headers(%Server.TokenAuth{token: token}), do: [{"Authorization", "Bearer #{token}"}]
-  defp auth_headers(%Server.ProviderAuth{token: token}) when not is_nil(token), do: [{"Authorization", "Bearer #{token}"}]
-  defp auth_headers(%Server.BasicAuth{token: token}) when not is_nil(token), do: [{"Authorization", "Basic #{token}"}]
+  defp auth_headers(%Server.TokenAuth{token: token}),
+    do: [{"Authorization", "Bearer #{token}"}]
+
+  defp auth_headers(%Server.ProviderAuth{token: token}) when not is_nil(token),
+    do: [{"Authorization", "Bearer #{token}"}]
+
+  defp auth_headers(%Server.BasicAuth{token: token}) when not is_nil(token),
+    do: [{"Authorization", "Basic #{token}"}]
+
   defp auth_headers(%Server.ProviderAuth{}) do
     raise "Provider authentication needs resolved before use.  Please see Kazan.Server.resolve_auth/2 documentation for more details"
   end
+
   defp auth_headers(_), do: []
 
   # Decode helpers: if we know what model we're expecting, use that.
