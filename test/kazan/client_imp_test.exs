@@ -13,7 +13,7 @@ defmodule Kazan.Client.ImpTest do
   describe "Client.Imp.run" do
     import Kazan.Client.Imp, only: [run: 2]
 
-    test "returns decoded data if application/json returned", context do
+    test "finds content type regardless of response header casing", context do
       %{request: request, bypass: bypass, server: server} = context
 
       Bypass.expect(bypass, fn conn ->

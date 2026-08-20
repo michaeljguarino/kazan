@@ -130,7 +130,9 @@ defmodule Kazan.Client.Imp do
   @spec get_content_type(HTTPoison.Response.t()) ::
           {:ok, String.t()} | {:error, :no_content_type}
   defp get_content_type(%{headers: headers}) do
-    case List.keyfind(headers, "content-type", 0) do
+    case Enum.find(headers, fn {name, _value} ->
+           String.downcase(name) == "content-type"
+         end) do
       nil -> {:error, :no_content_type}
       {_, content_type} -> {:ok, content_type}
     end
